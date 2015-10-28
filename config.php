@@ -1,5 +1,6 @@
 <?php
 require_once("easyConfig.php");
+require_once("../meta-config/config.php");
 
 /*
 	Example
@@ -77,7 +78,8 @@ require_once("easyConfig.php");
 	
 	}
 */
-$dsn = 'mysql://metabrain:NEEUjVW6R2KeLtfM@localhost/metabrain/';
+
+$dsn = 'mysql://'.$db_user.':'.$db_pass.'@'.$db_host.'/'.$db_name.'/';
 
 /*
 	Allow only access from a list of clients (OPTIONAL)	
@@ -311,9 +313,43 @@ ArrestDBConfig::auth(
 		"method"=>"GET"
 	],
 	function($method,$table,$id){
-		return true;
+		global $user;
+		
+		if (!isset($_SERVER['PHP_AUTH_USER'])||!isset($_SERVER['PHP_AUTH_PW'])) {
+		    header('WWW-Authenticate: Basic realm="meta.refugeehelper.net"');
+		    header('HTTP/1.0 401 Unauthorized');
+		    echo 'Invalid Auth';
+		    exit;
+		} else {
+			//Prepare params
+		    $user=$_SERVER['PHP_AUTH_USER'];
+		    
+		    //$pass=sha1($_SERVER['PHP_AUTH_PW']);
+		    $pass=md5($_SERVER['PHP_AUTH_PW']);
+	
+			//Prepare query
+			$query=ArrestDB::PrepareQueryGET([
+			    "TABLE"=>"user",
+			    "WHERE"=>["email='$user'","password='$pass'"]
+			]);
+	
+			//Execute query
+			$result=ArrestDB::Query($query);
+	
+			//Check if thereis one result
+			if (count($result)==0){
+				header('WWW-Authenticate: Basic realm="meta.refugeehelper.net"');
+			    header('HTTP/1.0 401 Unauthorized');
+			    echo 'Invalid Auth';
+			    exit;
+			}	
+			
+			//Set global user
+			$user=$result[0];
+			
+			return true;
+		}
 	});
-
 
 ArrestDBConfig::auth(
 	[],
